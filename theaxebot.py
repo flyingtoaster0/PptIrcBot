@@ -13,6 +13,7 @@ from threading import Thread
 import traceback
 from Queue import Queue
 from subprocess import call
+from word_filter import WordFilter
 
 #Setting the global logger to debug gets all sorts of irc debugging
 logging.getLogger().setLevel(logging.WARNING)
@@ -42,15 +43,15 @@ TasbotPipeEnable = settings.get('TasbotPipeEnable', False)
 TasbotEspeakEnable = settings.get('ScreenPlayFileName', True)
 
 
-def writeToPipe(writePipe, msg):
+def write_to_pipe(write_to_pipe, msg):
     """Utility function to write a message to a pipe.
        First add a newline if it doesn't have one.
        Then write the message and flush the pipe.
     """
     if not msg.endswith('\n'):
         msg += '\n'
-    writePipe.write(msg)
-    writePipe.flush()
+    write_to_pipe.write(msg)
+    write_to_pipe.flush()
 
 
 class ReplayTextThread(Thread):
@@ -60,18 +61,18 @@ class ReplayTextThread(Thread):
        to write to that pipe.
        It will never stop so do not wait for it!
     """
-    def __init__(self, replayQueue):
+    def __init__(self, replay_queue):
         super(ReplayTextThread, self).__init__()
 
-        self.replayQueue = replayQueue
+        self.replay_queue = replay_queue
 
     def run(self):
         if not os.path.exists(ReplayPipeName):
             os.mkfifo(ReplayPipeName)
-        writePipe = open(ReplayPipeName, 'w')
+        writepipe = open(ReplayPipeName, 'w')
         while True:
-            msg = self.replayQueue.get()
-            writeToPipe(writePipe, msg)
+            msg = self.replay_queue.get()
+            write_to_pipe(writepipe, msg)
 
 
 class ScreenPlayThread(Thread):
@@ -80,9 +81,9 @@ class ScreenPlayThread(Thread):
 
         self.ircBot = ircBot
         self.script = []
-        self.readScreenPlay(ScreenPlayFileName)
+        self.read_screenplay(ScreenPlayFileName)
 
-    def readScreenPlay(self, filename):
+    def read_screenplay(self, filename):
         if TasbotPipeEnable:
             if not os.path.exists(TasbotPipeName):
                 os.mkfifo(TasbotPipeName)
@@ -104,7 +105,7 @@ class ScreenPlayThread(Thread):
     def run(self):
         try:
             if TasbotPipeEnable:
-                tasBotPipe = open(TasbotPipeName, 'w')
+                tasbotpipe = open(TasbotPipeName, 'w')
             for delay, speaker, text in self.script:
                 time.sleep(delay)
                 debug("%s says %s" % (speaker, text))
@@ -113,7 +114,7 @@ class ScreenPlayThread(Thread):
                     self.ircBot.sendMessage(text)
                 if speaker == 'tasbot':
                     if TasbotPipeEnable:
-                        writeToPipe(tasBotPipe, text)
+                        write_to_pipe(tasbotpipe, text)
                     if TasbotEspeakEnable:
                         call(['espeak', '-p42', '-s140', '-m', text])
                         # call("espeak -p42 -s140 -m --stdout " + text)
@@ -130,14 +131,12 @@ class ScreenPlayThread(Thread):
 class PptIrcBot(irc.client.SimpleIRCClient):
     def __init__(self):
         irc.client.SimpleIRCClient.__init__(self)
-        self.badWords = self.getBadWords('bad-words.txt')
         #Precompiled tokenizing regex
         self.splitter = re.compile(r'[^\w]+')
-        self.urlregex = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-        self.otherbadregex = re.compile(r'\.((com)|(org)|(net))')
         self.replayQueue = Queue()
-        self.nonPrintingChars = set([chr(i) for i in xrange(32)])
-        self.nonPrintingChars.add(127)
+
+        self.word_filter = WordFilter()
+        self.word_filter.set_blacklist('bad-words.txt')
 
     def sendMessage(self, msg):
         # We don't want this showing up in chat:
@@ -157,12 +156,12 @@ class PptIrcBot(irc.client.SimpleIRCClient):
         """
         if (event.source.find(IrcNick) != -1):
             print "I joined!"
-            self.screenPlayThread = ScreenPlayThread(self)
+            # self.screenPlayThread = ScreenPlayThread(self)
             self.replayThread = ReplayTextThread(self.replayQueue)
             print 'starting replay thread'
             self.replayThread.start()
-            print 'starting screenplay thread'
-            self.screenPlayThread.start()
+            # print 'starting screenplay thread'
+            # self.screenPlayThread.start()
 
         # self.screenPlayThread = ScreenPlayThread(self)
         # self.replayThread = ReplayTextThread(self.replayQueue)
@@ -174,90 +173,31 @@ class PptIrcBot(irc.client.SimpleIRCClient):
     def on_disconnect(self, connection, event):
         sys.exit(0)
 
-    def naughtyMessage(self, sender, reason):
-        #Be sure to get rid of the naughty message before the event!
-        #An easy way is to just make this function a pass
-        #pass
-        # self.connection.privmsg(IrcChannel, "Naughty %s (%s)" % (sender, reason))
+    def notify_naughty_message(self, sender, reason):
+        # Be sure to get rid of the naughty message before the event!
+        # An easy way is to just make this function a pass
+        pass
         print("Naughty %s (%s)" % (sender, reason))
 
     def on_pubmsg(self, connection, event):
-        debug("pubmsg from %s: %s" % (event.source, event.arguments[0]))
+        # debug("pubmsg from %s: %s" % (event.source, event.arguments[0]))
+        # debug("%s: %s" % (event.source, event.arguments[0]))
         text = event.arguments[0]
         sender = event.source.split('!')[0]
         text = sender + ":" + text
-
-        #Check for non-ascii characters
-        try:
-            text.decode('ascii')
-        except (UnicodeDecodeError, UnicodeEncodeError):
-            self.naughtyMessage(sender, "not ascii")
-            return
-        except Exception:
-            #I am not sure what else can happen but just to be safe, reject on other errors
-            return
-
-        if self.urlregex.search(text):
-            self.naughtyMessage(sender, "url")
-            return
-
-        if self.otherbadregex.search(text):
-            self.naughtyMessage(sender, "url-like")
-            return
-
-        #We probably also want to filter some typically non-printing ascii chars:
-        #[18:12] <@Ilari> Also, one might want to drop character codes 0-31 and 127. And then map the icons to some of those.
-        if any(c in self.nonPrintingChars for c in text):
-            self.naughtyMessage(sender, "non-printing chars")
-            return
-
         text_lower = text.lower()
-        for badword_regex in self.badWords:
-            if badword_regex.search(text_lower):
-                self.naughtyMessage(sender, "bad word: " + badword_regex.pattern)
-                return
+
+        words, naughty_message = self.word_filter.filter(text_lower)
+
+        if naughty_message:
+            self.notify_naughty_message(sender, naughty_message)
+            return
 
         words = self.splitter.split(text_lower)
         words = map(lambda x: x.lower(), words)
-        print words
 
-        # if any(word.lower() in self.badWords for word in words):
-            # self.naughtyMessage(sender, "bad word:" + word)
-            # return
-        self.replayQueue.put(text)
+        print(words)
 
-    def getBadWords(self, filename):
-        #Make sure all the entries are lower case
-        #We lower-case the incoming text to make the check case-insensitive
-        badWords = open(filename)
-        badWordList_strings = set([word.strip().lower() for word in badWords.readlines()])
-        badWords.close()
-
-        if '' in badWordList_strings:
-            badWordList_strings.remove('')
-
-        badWordList_regex_strings = []
-
-        for word in badWordList_strings:
-            word = re.sub(r'[sz]', '[s5z2$]', word)
-            word = re.sub(r'a', '[a4]', word)
-            word = re.sub(r'e', '[e3]', word)
-            word = re.sub(r'i', '[i1]', word)
-            word = re.sub(r'l', '[l1]', word)
-            word = re.sub(r'o', '[o0]', word)
-            word = re.sub(r't', '[t7]', word)
-            word = re.sub(r'g', '[g6]', word)
-            word = re.sub(r'b', '[b8]', word)
-            word = re.sub(r'f', '(f|ph)', word)
-            word = re.sub(r'(c|k)', '[ck]', word)
-            badWordList_regex_strings.append(word)
-
-        badWordList = []
-
-        for word in badWordList_regex_strings:
-            badWordList.append(re.compile(word))
-
-        return badWordList
 
 
 def main():

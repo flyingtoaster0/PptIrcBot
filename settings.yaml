@@ -1,15 +1,15 @@
-IrcServer:      199.9.250.117:443
-#`IrcServer:      irc.twitch.tv:6667
 IrcNick:        tasred
+#IrcServer:      199.9.250.117:443
+IrcServer:      irc.twitch.tv:6667
 #IrcPassword:    "oauth:30p2759m1s7wcxmfkq7wbeh76c80kj"
 IrcPassword:    "oauth:w6s1fz0d9mpznfqhdjoirik3e7irvp"
 IrcChannel:     "#gamesdonequick"
 #IrcChannel:     "#gamesdonequick"
 #
-#ReplayPipeName:     replay_pipe
+ReplayPipeName:     replay_pipe
 #TasbotPipeName:     tasbot_pipe
 ##ScreenPlayFileName: screenplay.txt
-ScreenPlayFileName: RedScreenplay.txt
+#ScreenPlayFileName: RedScreenplay.txt
 #
 ##If true then tasbot's lines are written to tasbotpipe
 #TasbotPipeEnable:   false
