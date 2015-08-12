@@ -20,3 +20,4 @@ EnableReplayThread: True
 EnableScreenplayThread: False
 EnableVotingThread: False
 #VotingWhitelist: "voting_whitelist.txt"
+VotingDuration: 30

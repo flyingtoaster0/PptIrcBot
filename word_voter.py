@@ -86,20 +86,21 @@ class WordVoter(PipeThread):
             text = message['text']
             self.add_to_word_dict(text)
 
-    def __init__(self, mode, word_filter=None):
+    def __init__(self, mode, duration, word_filter=None):
         super(WordVoter, self).__init__()
         self.mode = mode
         self.word_dict = dict()
         self.splitter = re.compile(r'[^\w]+')
         self.word_filter = word_filter
-        self.voting_thread = VotingThread(self)
+        self.voting_thread = VotingThread(self, duration)
         self.queue = Queue()
 
 
 class VotingThread(Thread):
-    def __init__(self, word_voter):
+    def __init__(self, word_voter, duration):
         super(VotingThread, self).__init__()
         self.word_voter = word_voter
+        self.duration = duration
         self.locked = False
 
     def run(self):
@@ -112,7 +113,7 @@ class VotingThread(Thread):
             self.locked = False
 
             print(most_common_word)
-            sleep(10)
+            sleep(self.duration)
 
     # TODO actually write to a pipe when flushing the votes
     def write_to_pipe(self, write_to_pipe, message):

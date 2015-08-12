@@ -42,6 +42,7 @@ EnableReplayThread = settings.get('EnableReplayThread', False)
 EnableScreenplayThread = settings.get('EnableScreenplayThread', False)
 EnableVotingThread = settings.get('EnableVotingThread', False)
 VotingWhitelist = settings.get('VotingWhitelist', '')
+VotingDuration = settings.get('VotingDuration', 30)
 
 
 class PptIrcBot(irc.client.SimpleIRCClient):
@@ -126,10 +127,10 @@ def get_threads(irc_client):
         if VotingWhitelist:
             whitelist_filter = WordFilter()
             whitelist_filter.set_whitelist(VotingWhitelist)
-            word_voter_thread = WordVoter("nofile", whitelist_filter)
+            word_voter_thread = WordVoter("nofile", VotingDuration, whitelist_filter)
             threads.append(word_voter_thread)
         else:
-            threads.append(WordVoter("nofile"))
+            threads.append(WordVoter("nofile", VotingDuration))
 
     return threads
 
