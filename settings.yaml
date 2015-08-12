@@ -14,4 +14,9 @@ ReplayPipeName:     replay_pipe
 ##If true then tasbot's lines are written to tasbotpipe
 #TasbotPipeEnable:   false
 ##If true then tasbot's lines are read with espeak
-#TasbotEspeakEnable: true
+TasbotEspeakEnable: False
+#
+EnableReplayThread: True
+EnableScreenplayThread: False
+EnableVotingThread: False
+#VotingWhitelist: "voting_whitelist.txt"
