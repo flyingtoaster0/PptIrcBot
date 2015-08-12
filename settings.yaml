@@ -21,3 +21,4 @@ EnableScreenplayThread: False
 EnableVotingThread: False
 #VotingWhitelist: "voting_whitelist.txt"
 VotingDuration: 30
+VotingPipeName: voting_pipe

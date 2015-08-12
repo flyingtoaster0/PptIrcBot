@@ -6,6 +6,13 @@ from pipe_thread import PipeThread
 
 
 class WordVoter(PipeThread):
+    def write_to_pipe(self, line):
+
+        if not line.endswith('\n'):
+            line += '\n'
+        self.writepipe.write(line)
+        self.writepipe.flush()
+
     def get_file(self):
         file = open("words", "r")
         return file
@@ -79,6 +86,9 @@ class WordVoter(PipeThread):
     def put(self, message):
         self.queue.put(message)
 
+    def set_word_filter(self, word_filter):
+        self.word_filter = word_filter
+
     def run(self):
         self.start_thread()
         while True:
@@ -86,14 +96,19 @@ class WordVoter(PipeThread):
             text = message['text']
             self.add_to_word_dict(text)
 
-    def __init__(self, mode, duration, word_filter=None):
+    def __init__(self, mode, duration, pipe_name=None):
         super(WordVoter, self).__init__()
         self.mode = mode
         self.word_dict = dict()
         self.splitter = re.compile(r'[^\w]+')
-        self.word_filter = word_filter
+        self.word_filter = None
         self.voting_thread = VotingThread(self, duration)
         self.queue = Queue()
+        self.pipe_name = pipe_name
+
+        self.writepipe = None
+        if self.pipe_name:
+            self.writepipe = open(self.pipe_name, 'w')
 
 
 class VotingThread(Thread):
@@ -109,6 +124,10 @@ class VotingThread(Thread):
             # Lock thread to ignore input during calculations
             self.locked = True
             most_common_word = self.word_voter.get_most_common_word_and_amount()
+
+            if self.word_voter.writepipe:
+                self.word_voter.write_to_pipe(most_common_word[0])
+
             self.word_voter.clear_word_dict()
             self.locked = False
 
